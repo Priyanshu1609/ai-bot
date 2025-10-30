@@ -1,0 +1,47 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+env/
+venv/
+.venv/
+ENV/
+.ENV/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+pip-wheel-metadata/
+wheels/
+
+# Test / coverage
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Installer / generated files
+*.manifest
+*.spec
+
+# Local config / secrets
+.env
+.env.local
+instance/
+local_settings.py
+
+# Database files
+*.sqlite3
+*.db
+
+# IDEs / editors / OS
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
