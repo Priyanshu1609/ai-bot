@@ -1,8 +1,9 @@
 import json
+from typing import cast
 
 from app.services.search import get_google_search_results
 from app.services.generate import generate_blog_post
-from app.db.postgres import write_to_postgres
+from app.db.postgres import write_post_bundle
 
 
 # 4. --- Main Execution ---
@@ -34,14 +35,17 @@ def process_keyword(keyword: str) -> bool:
         print("Skipping blog generation due to failed search.")
         return False
 
-    title, content = generate_blog_post(context, keyword)
-    if not title or not content:
+    bundle = generate_blog_post(context, keyword)
+    if not bundle:
         print("Skipping database write due to failed blog generation.")
         return False
 
-    write_to_postgres(title, content)
-    print("------------------------------------------")
-    return True
+    if write_post_bundle(cast(dict, bundle)):
+        print("------------------------------------------")
+        return True
+    else:
+        return False
+    
 
 
 def main() -> None:

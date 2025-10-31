@@ -41,7 +41,7 @@ This implementation is a Python script orchestrated by GitHub Actions.
 - **Code:** **Python 3.10+** with a small modular package and a thin `main.py` entrypoint.
 - **Search API:** **Serper** (free tier, via `requests`).
 - **LLM API:** **Google Gemini** (free tier, via the official `google-genai` SDK).
-- **Database:** **Supabase** (free tier Postgres, via `psycopg2-binary`).
+- **Database:** **PrismaDB** (free tier Postgres, via `psycopg2-binary`).
 - **Secrets:** All API keys and connection strings are stored as **GitHub Actions Secrets**.
 
 ### Key Files in Repository

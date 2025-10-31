@@ -1,30 +1,20 @@
-"""Prompt templates used by the application."""
+"""Prompt templates used by the application (kept minimal; structure is enforced via SDK)."""
+
 
 def blog_post_prompt(search_context: str, keyword: str) -> str:
-    """Return a JSON-oriented prompt instructing the model to produce title and content.
+    """Return a concise content prompt; JSON shape will be enforced with response_schema.
 
-    The model is asked to return a JSON object with keys "title" and "content".
+    We keep this prompt free of JSON instructions to rely on Gemini structured output.
     """
     return f"""
 You are an expert tech blogger.
-Your task is to write a short, insightful blog post (around 300 words).
-The blog post should be about: "{keyword}".
+Write an insightful ~300-word article about "{keyword}".
 
-Use the following recent search results as your primary context to ensure the post is up-to-date and factual.
-Do NOT just list the search results. Synthesize them into a coherent article.
+Use the recent search results below as factual context. Synthesize ideas; avoid listing.
+Include a compelling title and a short 1–2 sentence summary. Write the body in semantic HTML.
 
-SEARCH CONTEXT:
+SEARCH CONTEXT
 ---
 {search_context}
 ---
-
-The output must be a JSON object with two keys: "title" and "content".
-
-Example:
-{{
-  "title": "The Future of AI: New Developments",
-  "content": "The world of AI is moving at breakneck speed..."
-}}
-
-Now, write the blog post.
 """

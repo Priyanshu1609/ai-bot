@@ -14,7 +14,8 @@ load_dotenv()
 # --- Environment variables ---
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 SERPER_API_KEY = os.environ.get("SERPER_API_KEY")
-DB_CONN_STRING = os.environ.get("SUPABASE_CONN_STRING")
+# Support both names for compatibility with previous versions
+DB_CONN_STRING = os.environ.get("DB_CONN_STRING")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 
 # --- SDK Clients ---
