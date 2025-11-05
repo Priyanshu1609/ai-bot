@@ -5,14 +5,26 @@ on:
   # 1. Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-  # 2. Runs the job on a schedule (e.g., every day at 4:30 AM UTC)
+  # 2. Runs the job on a schedule (e.g., every day at 5:30 AM UTC)
   # Use [https://crontab.guru/](https://crontab.guru/) to build your schedule
   schedule:
-    - cron: "30 4 * * *"
+    - cron: "30 5 * * *"
 
 # --- The Job ---
 jobs:
+  # Optional: visible no-op job when paused, so you see why the run was skipped
+  paused-note:
+    if: ${{ vars.BLOG_BOT_PAUSED == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Blog bot is currently paused
+        run: |
+          echo "The blog bot workflow is paused via repository variable 'BLOG_BOT_PAUSED'."
+          echo "To resume, set BLOG_BOT_PAUSED to 'false' (see Toggle workflow)."
+
   build-and-run:
+    # Gate the main job behind the pause switch
+    if: ${{ vars.BLOG_BOT_PAUSED != 'true' }}
     runs-on: ubuntu-latest # Use a standard virtual machine
 
     steps:
