@@ -1,72 +1,186 @@
+import os
 import json
-from typing import cast
+import psycopg2
 
-from app.services.search import get_google_search_results
-from app.services.generate import generate_blog_post
-from app.db.postgres import write_post_bundle
+# LangChain components
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_community.utilities import GoogleSerperAPIWrapper
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
+
+# 1. --- Get Secrets & Initialize Components ---
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+SERPER_API_KEY = os.environ.get("SERPER_API_KEY")
+DB_CONN_STRING = os.environ.get("SUPABASE_CONN_STRING")
+
+# Initialize our LLM (Gemini)
+llm = ChatGoogleGenerativeAI(model="gemini-pro", google_api_key=GEMINI_API_KEY)
+
+# Initialize our Search Tool (Serper)
+search = GoogleSerperAPIWrapper(serper_api_key=SERPER_API_KEY)
 
 
-# 4. --- Main Execution ---
+# 2. --- Define Our Two Chains ---
 
-def load_keywords(file_path: str = "keywords.json") -> list:
-    """Load a list of keywords from a JSON file.
-
-    The file is expected to contain an object with a top-level key "keywords"
-    whose value is a list of strings.
+def create_topic_scout_chain():
     """
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            return data.get("keywords", [])
-    except Exception as e:
-        print(f"Could not read {file_path}: {e}")
-        return []
-
-
-def process_keyword(keyword: str) -> bool:
-    """Process a single keyword end-to-end: search -> generate -> persist.
-
-    Returns True if a post was successfully written to the database; otherwise False.
+    This chain acts as a "News Editor."
+    It searches a broad topic and decides on a single, specific story to write about.
     """
-    print(f"\n--- Processing Keyword: {keyword} ---")
-
-    context = get_google_search_results(keyword)
-    if not context:
-        print("Skipping blog generation due to failed search.")
-        return False
-
-    bundle = generate_blog_post(context, keyword)
-    if not bundle:
-        print("Skipping database write due to failed blog generation.")
-        return False
-
-    if write_post_bundle(cast(dict, bundle)):
-        print("------------------------------------------")
-        return True
-    else:
-        return False
+    print("...Initializing Topic Scout chain...")
     
+    # This prompt instructs the LLM to act as an editor
+    scout_prompt_template = """
+    You are an expert news editor. Your goal is to find one specific, interesting story.
+    Based on the following search results for a broad topic, identify the
+    SINGLE most interesting, specific, and timely news story or development.
+    
+    Return ONLY a new, concise Google search query for that specific story.
+    Do not add any preamble, explanation, or extra text.
+    
+    Broad Topic Search Results:
+    ---
+    {search_context}
+    ---
+    
+    New, Specific Search Query:
+    """
+    
+    prompt = ChatPromptTemplate.from_template(scout_prompt_template)
+    
+    # The chain:
+    # 1. Takes "search_context" as input
+    # 2. Formats the prompt
+    # 3. Sends it to the LLM
+    # 4. Parses the string output
+    chain = prompt | llm | StrOutputParser()
+    return chain
 
 
-def main() -> None:
-    """Entrypoint that orchestrates reading keywords and processing them."""
-    keywords = load_keywords("keywords.json")
-    if not keywords:
-        print("No keywords found. Ensure 'keywords.json' contains a 'keywords' array.")
+def create_blog_writer_chain():
+    """
+    This chain acts as a "Blog Author."
+    It takes a specific topic, researches it, and writes the final blog post.
+    """
+    print("...Initializing Blog Writer chain...")
+
+    # This prompt instructs the LLM to write the blog post in JSON format
+    writer_prompt_template = """
+    You are an expert tech blogger. Your task is to write a short, insightful blog post
+    (around 300 words) based on the specific topic and context provided.
+    
+    The blog post should be about: "{specific_topic}"
+    
+    Use the following recent search results as your primary context to ensure
+    the post is up-to-date and factual. Synthesize them into a coherent article.
+    
+    SEARCH CONTEXT:
+    ---
+    {search_context}
+    ---
+    
+    The output must be a single, valid JSON object with two keys: "title" and "content".
+    
+    Example:
+    {{
+      "title": "The Future of AI: New Developments",
+      "content": "The world of AI is moving at breakneck speed..."
+    }}
+    """
+    
+    prompt = ChatPromptTemplate.from_template(writer_prompt_template)
+    
+    # The chain:
+    # 1. Takes "specific_topic" and "search_context" as input
+    # 2. Formats the prompt
+    # 3. Sends it to the LLM
+    # 4. Parses the output as JSON
+    chain = prompt | llm | JsonOutputParser()
+    return chain
+
+
+# 3. --- Database Function (Unchanged) ---
+
+def write_to_postgres(title, content):
+    """Writes the generated blog post to the Supabase Postgres DB."""
+    if not title or not content:
+        print("Skipping database insert due to missing title or content.")
         return
 
-    print(f"Found {len(keywords)} keywords. Starting workflow...")
+    print(f"Writing to database: {title}")
+    sql = "INSERT INTO posts (title, content) VALUES (%s, %s)"
+    
+    try:
+        conn = psycopg2.connect(DB_CONN_STRING)
+        cursor = conn.cursor()
+        cursor.execute(sql, (title, content))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        print("Successfully written to database.")
+    except Exception as e:
+        print(f"Error writing to database: {e}")
 
-    successes = 0
-    for kw in keywords:
+
+# 4. --- Main Execution (Orchestrator) ---
+
+def main():
+    try:
+        with open('keywords.json', 'r') as f:
+            data = json.load(f)
+            keywords = data.get("keywords", [])
+    except Exception as e:
+        print(f"Could not read keywords.json: {e}")
+        return
+
+    print(f"Found {len(keywords)} broad keywords. Initializing chains...")
+    
+    # Create our reusable chains
+    topic_scout = create_topic_scout_chain()
+    blog_writer = create_blog_writer_chain()
+
+    for broad_keyword in keywords:
+        print(f"\n--- Processing Broad Keyword: {broad_keyword} ---")
+        
+        # --- STAGE 1: The Topic Scout ---
+        print(f"Scouting for specific topics...")
+        # 1. Search for the broad topic
         try:
-            if process_keyword(kw):
-                successes += 1
+            broad_search_results = search.run(broad_keyword)
+            print(f"Broad search context (first 100 chars): {broad_search_results[:100]}...")
+            
+            # 2. Invoke the "Scout" chain to decide on a specific topic
+            specific_topic_query = topic_scout.invoke({
+                "search_context": broad_search_results
+            })
+            print(f"Scout decided on new topic: {specific_topic_query}")
         except Exception as e:
-            # Never let one keyword kill the whole batch
-            print(f"Unexpected error while processing '{kw}': {e}")
+            print(f"Error in Topic Scout stage: {e}")
+            continue # Skip to the next keyword
 
-    print(f"Completed. Successfully processed {successes}/{len(keywords)} keywords.")
+        # --- STAGE 2: The Blog Writer ---
+        print(f"Researching and writing blog for: {specific_topic_query}")
+        try:
+            # 3. Search for the *new, specific* topic
+            specific_search_results = search.run(specific_topic_query)
+            print(f"Specific search context (first 100 chars): {specific_search_results[:100]}...")
+
+            # 4. Invoke the "Writer" chain to generate the blog post
+            blog_post_json = blog_writer.invoke({
+                "specific_topic": specific_topic_query,
+                "search_context": specific_search_results
+            })
+            
+            # 5. Write the result to the database
+            write_to_postgres(
+                blog_post_json.get("title"), 
+                blog_post_json.get("content")
+            )
+        except Exception as e:
+            print(f"Error in Blog Writer stage: {e}")
+            continue # Skip to the next keyword
+            
+        print("------------------------------------------")
 
 
 if __name__ == "__main__":
