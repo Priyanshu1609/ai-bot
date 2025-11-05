@@ -1,12 +1,18 @@
-"""Application configuration and SDK client initialization.
+"""Application configuration and environment variables.
 
-Loads environment variables (supports .env for local dev) and exposes
-constants and shared clients to be used across the app.
+Loads env vars (optionally from .env when available) and exposes constants.
+We avoid importing heavy SDKs here to keep dependencies minimal in the
+LangChain-based architecture.
 """
 
 import os
-from dotenv import load_dotenv
-from google import genai
+
+try:
+	from dotenv import load_dotenv  # type: ignore
+except Exception:
+	# Graceful fallback if python-dotenv isn't installed
+	def load_dotenv() -> None:  # type: ignore
+		return None
 
 # Load from .env when running locally. In CI, environment variables should be set directly.
 load_dotenv()
@@ -16,8 +22,4 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 SERPER_API_KEY = os.environ.get("SERPER_API_KEY")
 # Support both names for compatibility with previous versions
 DB_CONN_STRING = os.environ.get("DB_CONN_STRING")
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-
-# --- SDK Clients ---
-# The official Google Generative AI SDK reads the API key from environment.
-gemini_client = genai.Client()
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
