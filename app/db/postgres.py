@@ -7,8 +7,8 @@ Post, Tag, Author, PostTag, PostAuthor.
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional
 import uuid
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse, urlunparse, parse_qs
 
 import psycopg2
@@ -56,7 +56,6 @@ def _connect() -> PGConnection:
 def _ensure_slug(text: str) -> str:
     """Create a simple kebab-case slug from a title."""
     text = text.lower().strip()
-    # Replace non-alphanumeric with hyphen
     text = re.sub(r"[^a-z0-9]+", "-", text)
     return re.sub(r"-+", "-", text).strip("-")
 
@@ -111,12 +110,10 @@ def write_post_bundle(bundle: dict) -> bool:
         post_id = row[0]
 
         # Upsert Tags and link
-        tag_ids: List[str] = []
         for t in tags:
             tname = (t or "").strip()
             if not tname:
                 continue
-            # Provide explicit UUID for Tag as well to avoid NULL id on DBs without default
             tag_uuid = str(uuid.uuid4())
             cur.execute(
                 """
@@ -130,7 +127,6 @@ def write_post_bundle(bundle: dict) -> bool:
             if not row:
                 raise RuntimeError("Failed to insert or fetch Tag id")
             tag_id = row[0]
-            tag_ids.append(tag_id)
             cur.execute(
                 """
                 INSERT INTO "PostTag" ("postId", "tagId") VALUES (%s, %s)
@@ -146,7 +142,6 @@ def write_post_bundle(bundle: dict) -> bool:
                 continue
             twitter = a.get("twitter")
             avatar = a.get("avatarUrl")
-            # Provide explicit UUID for Author as well
             author_uuid = str(uuid.uuid4())
             cur.execute(
                 """
@@ -187,6 +182,7 @@ def write_post_bundle(bundle: dict) -> bool:
         except Exception:
             pass
         return False
+ 
 
 
 # Backward-compatible minimal insert (older table 'posts')

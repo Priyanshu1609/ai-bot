@@ -14,6 +14,7 @@ from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
 
 from ..config import GEMINI_API_KEY, GEMINI_MODEL
 from ..prompts import topic_scout_template, blog_writer_template
+from .schemas import PostBundle
 
 
 def _get_llm() -> ChatGoogleGenerativeAI:
@@ -36,4 +37,12 @@ def create_blog_writer_chain():
     """Create the Blog Writer chain: prompt -> LLM -> JSON dict output."""
     prompt = ChatPromptTemplate.from_template(blog_writer_template())
     llm = _get_llm()
-    return prompt | llm | JsonOutputParser()
+    # Bind server-enforced structured output using Pydantic JSON schema
+    schema = PostBundle.model_json_schema()
+    llm_json = llm.bind(
+        generation_config={
+            "response_mime_type": "application/json",
+            "response_json_schema": schema,
+        }
+    )
+    return prompt | llm_json | JsonOutputParser()

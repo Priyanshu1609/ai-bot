@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from app.services.search import get_google_search_results
 from app.services.chains import create_topic_scout_chain, create_blog_writer_chain
-from app.db.postgres import write_to_postgres
+from app.db.postgres import write_post_bundle
 
 
 # 4. --- Main Execution (Orchestrator) ---
@@ -53,15 +53,13 @@ def write_blog_for_topic(specific_topic_query: str, blog_writer) -> bool:
     print(f"Specific search context (first 100 chars): {specific_search_results[:100]}...")
 
     try:
-        blog_post_json = blog_writer.invoke({
+        bundle = blog_writer.invoke({
             "specific_topic": specific_topic_query,
             "search_context": specific_search_results,
         })
-        title = (blog_post_json or {}).get("title")
-        content = (blog_post_json or {}).get("content")
-        write_to_postgres(title, content)
+        ok = write_post_bundle(bundle or {})
         print("------------------------------------------")
-        return bool(title and content)
+        return ok
     except Exception as e:
         print(f"Error invoking Blog Writer: {e}")
         return False

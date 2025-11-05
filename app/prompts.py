@@ -33,8 +33,21 @@ New, Specific Search Query:
 def blog_writer_template() -> str:
     """Template for the "Blog Writer" authoring step.
 
-    Variables: {specific_topic}, {search_context}
-    The model is asked to output a JSON with title/content for legacy DB.
+        Variables: {specific_topic}, {search_context}
+        The model will output a structured JSON object (server-enforced) matching:
+        {
+            "post": {
+                "slug": string | null,
+                "title": string,
+                "summary": string | null,
+                "contentHtml": string,
+                "date": string | null,
+                "image": string | null,
+                "readingTimeMinutes": integer | null
+            },
+            "tags": string[],
+            "authors": [{ "name": string, "twitter"?: string, "avatarUrl"?: string }]
+        }
     """
     return (
         """
@@ -51,28 +64,8 @@ SEARCH CONTEXT:
 {search_context}
 ---
 
-The output must be a single, valid JSON object with two keys: "title" and "content".
-
-Example:
-{
-  "title": "The Future of AI: New Developments",
-  "content": "The world of AI is moving at breakneck speed..."
-}
+Write a cohesive post in semantic HTML under post.contentHtml. Include a clear title under post.title,
+and add 3–6 relevant tags. If an author is known, include authors with name and any metadata available.
+Return only the JSON object.
 """
     ).strip()
-
-
-# Backward-compat prompt used by the non-LangChain generator (kept for reference)
-def blog_post_prompt(search_context: str, keyword: str) -> str:
-    return f"""
-You are an expert tech blogger.
-Write an insightful ~300-word article about "{keyword}".
-
-Use the recent search results below as factual context. Synthesize ideas; avoid listing.
-Include a compelling title and a short 1–2 sentence summary. Write the body in semantic HTML.
-
-SEARCH CONTEXT
----
-{search_context}
----
-"""
