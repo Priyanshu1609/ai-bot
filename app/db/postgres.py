@@ -182,21 +182,3 @@ def write_post_bundle(bundle: dict) -> bool:
         except Exception:
             pass
         return False
- 
-
-
-# Backward-compatible minimal insert (older table 'posts')
-def write_to_postgres(title: str | None, content: str | None) -> None:
-    if not title or not content:
-        print("Skipping database insert due to missing title or content.")
-        return
-    try:
-        conn = _connect()
-        cur = conn.cursor()
-        cur.execute("INSERT INTO posts (title, content) VALUES (%s, %s)", (title, content))
-        conn.commit()
-        cur.close()
-        conn.close()
-        print("Successfully written to database.")
-    except Exception as e:
-        print(f"Error writing to database (legacy 'posts' table): {e}")

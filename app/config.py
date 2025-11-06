@@ -22,4 +22,4 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 SERPER_API_KEY = os.environ.get("SERPER_API_KEY")
 # Support both names for compatibility with previous versions
 DB_CONN_STRING = os.environ.get("DB_CONN_STRING")
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")

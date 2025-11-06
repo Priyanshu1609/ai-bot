@@ -22,7 +22,7 @@ def _get_llm() -> ChatGoogleGenerativeAI:
 
     Falls back to a reasonable default model name if not provided.
     """
-    model_name = GEMINI_MODEL or "gemini-1.5-flash"
+    model_name = GEMINI_MODEL or "gemini-2.5-flash"
     return ChatGoogleGenerativeAI(model=model_name, google_api_key=GEMINI_API_KEY)
 
 

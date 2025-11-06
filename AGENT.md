@@ -116,7 +116,7 @@ Environment variables
 - `GEMINI_API_KEY` – Google Generative AI API key
 - `SERPER_API_KEY` – Serper API key
 - `DB_CONN_STRING` – Postgres connection string (supports `?schema=public`)
-- `GEMINI_MODEL` – optional, defaults to `gemini-1.5-flash`
+- `GEMINI_MODEL` – optional, defaults to `gemini-2.5-flash`
 
 Install dependencies
 
